@@ -1,5 +1,47 @@
-*.class
+# sbt
+.bsp
+lib_managed
+project/project
+target
+
+# Worksheets
+*.sc
+
+# Eclipse
+.cache*
+.classpath
+.project
+.scala_dependencies
+.settings
+.target
+.worksheet
+
+# IntelliJ
+.idea
+
+# ENSIME
+.ensime
+.ensime_cache
+.ensime_lucene
+
+# VSCode
+.vscode
+
+# Mac
+.DS_Store
+
+# Akka
+ddata*
+journal
+snapshots
+
+# Log files
 *.log
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
+# jenv
+.java-version
+
+# Metals
+.bloop
+.metals
+metals.sbt
