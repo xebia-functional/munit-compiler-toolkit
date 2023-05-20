@@ -133,7 +133,7 @@ import scala.util.Properties
 trait CompilerFixtures:
   self: FunSuite =>
 
-  def compilerContext(): Context =
+  protected def compilerContext(): Context =
     val base = new ContextBase {}
     val compilerPlugin =
       Properties.propOrEmpty("scala-compiler-plugins").split(",")

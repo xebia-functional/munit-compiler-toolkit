@@ -22,6 +22,8 @@ lazy val commonSettings = Seq(
   )
 )
 
+lazy val MunitFramework = new TestFramework("munit.Framework")
+
 lazy val root = project
   .in(file("."))
   .settings(commonSettings)
@@ -29,10 +31,34 @@ lazy val root = project
     name := "munit-compiler-toolkit",
     version := "0.1.0-SNAPSHOT"
   )
-  .aggregate(`munit-compiler-toolkit-fixtures`)
+  .aggregate(`munit-compiler-toolkit-testkit`, testCompilerPlugin)
 
-lazy val `munit-compiler-toolkit-fixtures` = project
-  .in(file("./munit-compiler-toolkit-fixtures"))
+lazy val testCompilerPlugin = project
+  .in(file("./munit-compiler-toolkit-testPlugin"))
+  .settings(commonSettings)
+  .settings(
+    exportJars := true,
+    publish / skip := true,
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
+    Test / testOptions += Tests.Argument(
+      MunitFramework,
+      "-Dscala-compiler-plugins:${(testCompilerPlugin / Compile / packageBin).value}"
+    ),
+    Test / testOptions += Tests.Argument(
+      MunitFramework,
+      s"-Dscala-compiler-classpath=:${(Compile / dependencyClasspath).value.files
+          .map(_.toPath().toAbsolutePath().toString())
+          .mkString(":")}"
+    ),
+    Test / testOptions += Tests.Argument(
+      MunitFramework,
+      s"""-Dcompiler-scalacOptions="${scalacOptions.value.mkString(" ")}""""
+    )
+  )
+  .dependsOn(`munit-compiler-toolkit-testkit`)
+
+lazy val `munit-compiler-toolkit-testkit` = project
+  .in(file("./munit-compiler-toolkit-testkit"))
   .settings(commonSettings)
   .settings(
     libraryDependencies += munit,
