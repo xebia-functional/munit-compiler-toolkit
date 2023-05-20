@@ -115,51 +115,126 @@
  *   - Accessed on 2022/10/08T22:20:00.000Z-5:00 [6]
  */
 // format: on
-
 package com
 package xebia
 package functional
 package munitCompilerToolkit
 
-import dotty.tools.dotc.core.Comments.ContextDoc
-import dotty.tools.dotc.core.Comments.ContextDocstrings
+import dotty.tools.dotc.Compiler
+import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Contexts.ContextBase
-import dotty.tools.dotc.core.Symbols.Symbol
+import dotty.tools.dotc.core.Phases.Phase
+import dotty.tools.dotc.core.Types.Type
+import munit.Assertions
 import munit.FunSuite
+import munit.Location
+import munit.TestOptions
+import munit.internal.PlatformCompat
 
-import scala.util.Properties
+import scala.concurrent.Future
+import scala.util.control.NonFatal
 
-trait CompilerFixtures:
-  self: FunSuite =>
+trait CompilerSuite extends FunSuite, CompilerFixtures:
 
-  def compilerContext(): Context =
-    val base = new ContextBase {}
-    val compilerPlugin =
-      Properties.propOrEmpty("scala-compiler-plugins").split(",")
-    val compilerClasspath = Properties.propOrEmpty(
-      "scala-compiler-classpath"
-    ) ++ s":${Properties.propOrEmpty("scala-compiler-plugin")}"
-    val context = base.initialCtx.fresh
-    context.setSetting(context.settings.color, "never")
-    context.setSetting(context.settings.encoding, "UTF8")
-    context.setSetting(
-      context.settings.language,
-      List("experimental.erasedDefinitions")
+  def cleanCompilerOutput(tree: Tree)(using Context): String =
+    removeLineTrailingSpaces(
+      compileSourceIdentifier.replaceAllIn(tree.show, "")
     )
-    context.setSetting(context.settings.noindent, true)
-    context.setSetting(context.settings.XprintDiffDel, true)
-    context.setSetting(context.settings.pageWidth, 149)
-    if (compilerPlugin.nonEmpty)
-      context.setSetting(context.settings.classpath, compilerClasspath)
-      context.setSetting(context.settings.plugin, compilerPlugin.toList)
-    context.setProperty(ContextDoc, new ContextDocstrings)
-    base.initialize()(using context)
-    context
+  end cleanCompilerOutput
 
-  private lazy val owner: Context ?=> Symbol =
-    c.owner
+  def compilerTest(name: String)(source: String, afterPhase: Option[String])(
+      assertion: (Tree, Context) => Unit
+  )(using Location): Unit =
+    compilerTest(TestOptions(name))(source, afterPhase.getOrElse("typer"))(
+      assertion
+    )
+  end compilerTest
 
-  private def c(using Context): Context = summon[Context]
+  def compilerTest(options: TestOptions)(source: String, afterPhase: String)(
+      assertion: (Tree, Context) => Unit
+  )(using Location): Unit =
+    munitTestsBuffer += munitTestTransform(
+      new Test(
+        options.name,
+        { () =>
+          try {
+            given Context = compilerContext()
+            waitForCompletion(
+              munitValueTransform(checkCompile(afterPhase, source)(assertion))
+            )
+          } catch {
+            case NonFatal(e) =>
+              Future.failed(e)
+          }
+        },
+        options.tags.toSet,
+        summon
+      )
+    )
+  end compilerTest
 
-end CompilerFixtures
+  extension [A](fixture: FunFixture[A]) {
+    def compilerTest(name: String)(afterPhase: Option[String])(
+        source: A => String
+    )(
+        assertion: (A) => (Tree, Context) => Unit
+    )(using Location): Unit =
+      fixture.compilerTest(TestOptions(name))(source)(
+        afterPhase.getOrElse("typer")
+      )(assertion)
+    def compilerTest(options: TestOptions)(source: A => String)(
+        afterPhase: String
+    )(
+        assertion: (A) => (Tree, Context) => Unit
+    )(using Location): Unit = fixture.test(options) { a =>
+      given Context = compilerContext()
+      checkCompile(afterPhase, source(a))(assertion(a))
+    }
+  }
+  private def checkCompile(checkAfterPhase: String, source: String)(
+      assertion: (Tree, Context) => Unit
+  )(using Context): Context =
+    val c = compilerWithChecker(checkAfterPhase)(assertion)
+    val run = c.newRun
+    run.compileFromStrings(List(source))
+    run.runContext
+  end checkCompile
+
+  private def compilerWithChecker(
+      phase: String
+  )(assertion: (Tree, Context) => Unit) =
+    new Compiler:
+      override def phases =
+        val allPhases =
+          super.phases
+        val targetPhase =
+          allPhases.flatten.find(p => p.phaseName == phase).get
+        val groupsBefore =
+          allPhases.takeWhile(x => !x.contains(targetPhase))
+        val lastGroup =
+          allPhases
+            .find(x => x.contains(targetPhase))
+            .get
+            .takeWhile(x => !(x eq targetPhase))
+        val checker = new Phase:
+          def phaseName = "assertionChecker"
+          override def run(using ctx: Context): Unit =
+            assertion(ctx.compilationUnit.tpdTree, ctx)
+
+        val lastGroupAppended = List(lastGroup ::: targetPhase :: Nil)
+
+        groupsBefore ::: lastGroupAppended ::: List(List(checker))
+      end phases
+
+  private final def waitForCompletion[T](f: Future[T]) =
+    PlatformCompat.waitAtMost(f, munitTimeout)
+  end waitForCompletion
+
+  private def removeLineTrailingSpaces(s: String): String =
+    s.lines.map(_.stripTrailing).reduce(_ ++ "\n" ++ _).get
+  end removeLineTrailingSpaces
+
+  private lazy val compileSourceIdentifier =
+    """-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}.""".r
+
+end CompilerSuite

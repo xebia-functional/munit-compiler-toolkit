@@ -1,5 +1,7 @@
 import Dependencies.Compile._
 
+ThisBuild / scalaVersion := "3.2.1"
+
 lazy val commonSettings = Seq(
   organizationName := "Xebia Functional",
   startYear := Some(2023),
