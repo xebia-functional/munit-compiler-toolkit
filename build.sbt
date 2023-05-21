@@ -38,22 +38,30 @@ lazy val testCompilerPlugin = project
   .settings(commonSettings)
   .settings(
     exportJars := true,
+    autoAPIMappings := true,
     publish / skip := true,
-    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
-    Test / testOptions += Tests.Argument(
-      MunitFramework,
-      "-Dscala-compiler-plugins:${(testCompilerPlugin / Compile / packageBin).value}"
+    Test / fork := true,
+    libraryDependencies ++= List(
+      "org.scala-lang" %% "scala3-compiler" % "3.1.2"
     ),
-    Test / testOptions += Tests.Argument(
-      MunitFramework,
-      s"-Dscala-compiler-classpath=:${(Compile / dependencyClasspath).value.files
+    Test / javaOptions += {
+      val `scala-compiler-classpath` =
+        (Compile / dependencyClasspath).value.files
           .map(_.toPath().toAbsolutePath().toString())
-          .mkString(":")}"
-    ),
-    Test / testOptions += Tests.Argument(
-      MunitFramework,
-      s"""-Dcompiler-scalacOptions="${scalacOptions.value.mkString(" ")}""""
-    )
+          .mkString(":")
+      s"-Dscala-compiler-classpath=${`scala-compiler-classpath`}"
+    },
+    Test / javaOptions += {
+      s"""-Dcompiler-scalacOptions=\"${scalacOptions.value.mkString(" ")}\""""
+    },
+    Test / javaOptions += Def.taskDyn {
+      Def.task {
+        val _ = (Compile / Keys.`package`).value
+        val `scala-compiler-options` =
+          s"${(Compile / packageBin).value}"
+        s"""-Dscala-compiler-plugin=${`scala-compiler-options`}"""
+      }
+    }.value
   )
   .dependsOn(`munit-compiler-toolkit-testkit`)
 

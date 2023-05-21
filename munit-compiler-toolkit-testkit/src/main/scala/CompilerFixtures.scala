@@ -135,8 +135,7 @@ trait CompilerFixtures:
 
   protected def compilerContext(): Context =
     val base = new ContextBase {}
-    val compilerPlugin =
-      Properties.propOrEmpty("scala-compiler-plugins").split(",")
+    val compilerPlugin = Properties.propOrEmpty("scala-compiler-plugin")
     val compilerClasspath = Properties.propOrEmpty(
       "scala-compiler-classpath"
     ) ++ s":${Properties.propOrEmpty("scala-compiler-plugin")}"
@@ -150,9 +149,14 @@ trait CompilerFixtures:
     context.setSetting(context.settings.noindent, true)
     context.setSetting(context.settings.XprintDiffDel, true)
     context.setSetting(context.settings.pageWidth, 149)
-    if (compilerPlugin.nonEmpty)
+    if (compilerPlugin.nonEmpty) {
       context.setSetting(context.settings.classpath, compilerClasspath)
-      context.setSetting(context.settings.plugin, compilerPlugin.toList)
+    }
+
+    context.setSetting(
+      context.settings.plugin,
+      List(Properties.propOrEmpty("scala-compiler-plugin"))
+    )
     context.setProperty(ContextDoc, new ContextDocstrings)
     base.initialize()(using context)
     context
