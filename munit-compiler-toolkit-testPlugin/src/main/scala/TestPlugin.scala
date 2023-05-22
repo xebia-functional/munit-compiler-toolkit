@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023 Xebia Functional
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com
 package xebia
 package functional
@@ -24,33 +40,56 @@ class TestPhase() extends PluginPhase:
   override def phaseName: String = TestPhase.name
   override val runsAfter = Set(Staging.name)
   override def runsBefore: Set[String] = Set("pickleQuotes")
+  private def extractNestedArgs(
+      tree: Tree,
+      args: List[List[Tree]]
+  ): List[List[Tree]] =
+    tree match {
+      case Apply(b @ Apply(fn, _), largs) =>
+        extractNestedArgs(b, args.appended(largs))
+      case Apply(b @ TypeApply(fn, _), largs) =>
+        extractNestedArgs(b, args.appended(largs))
+      case Apply(fn, largs) => args.appended(largs)
+      case _                => args
+    }
   override def transformApply(tree: Apply)(using Context): Tree =
-    if (tree.fun.symbol.name.show != StdNames.nme.CONSTRUCTOR.show)
-      val interceptedArgs: List[Tree] =
-        List(Literal(Constant(tree.fun.symbol.showFullName))) ::: tree.args
-      val newTree =
-        if (interceptedArgs.size > 1)
-          New(
-            requiredClassRef(
-              "com.xebia.functional.munitCompilerToolkit.LoggingInterceptor"
+    if (
+      tree.fun.symbol.name.show == StdNames.nme.CONSTRUCTOR.show && tree.fun.symbol.name.show != "<none>" && !tree.fun.symbol.annotations
+        .exists(_.symbol.name.show != "main")
+    ) tree
+    else
+      val extractedArgs = extractNestedArgs(tree, Nil).filterNot(_.isEmpty)
+      val argsToLog = (List(
+        Literal(Constant(tree.fun.symbol.showFullName))
+      ) :: extractedArgs).flatten
+      if (extractedArgs.isEmpty)
+        New(
+          requiredClassRef(
+            "com.xebia.functional.munitCompilerToolkit.LoggingInterceptor"
+          )
+        ).select(StdNames.nme.CONSTRUCTOR)
+          .appliedToType(tree.fun.symbol.info.finalResultType)
+          .appliedTo(tree)
+          .select(Names.termName("apply"), _.paramSymss.flatten.size == 1)
+          .appliedToArgs(argsToLog)
+      else
+        New(
+          requiredClassRef(
+            "com.xebia.functional.munitCompilerToolkit.LoggingInterceptor"
+          )
+        ).select(StdNames.nme.CONSTRUCTOR)
+          .appliedToType(tree.fun.symbol.info.finalResultType)
+          .appliedTo(tree)
+          .select(Names.termName("apply"), _.paramSymss.flatten.size > 1)
+          .appliedToArgs(
+            List(
+              Literal(Constant(tree.fun.symbol.showFullName))
             )
-          ).select(StdNames.nme.CONSTRUCTOR)
-            .appliedToType(tree.fun.symbol.info.finalResultType)
-            .appliedTo(tree)
-            .select(Names.termName("apply"), _.paramSymss.flatten.size > 1)
-            .appliedToArgs(interceptedArgs)
-        else
-          New(
-            requiredClassRef(
-              "com.xebia.functional.munitCompilerToolkit.LoggingInterceptor"
-            )
-          ).select(StdNames.nme.CONSTRUCTOR)
-            .appliedToType(tree.fun.symbol.info.finalResultType)
-            .appliedTo(tree)
-            .select(Names.termName("apply"), _.paramSymss.flatten.size == 1)
-            .appliedTo(Literal(Constant(tree.fun.symbol.showFullName)))
-      newTree
-    else tree
+          )
+          .appliedToVarargs(
+            extractedArgs.flatten,
+            TypeTree(summon[Context].definitions.AnyType)
+          )
 end TestPhase
 
 object TestPhase:

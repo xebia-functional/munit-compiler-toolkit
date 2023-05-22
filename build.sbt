@@ -33,6 +33,13 @@ lazy val root = project
   )
   .aggregate(`munit-compiler-toolkit-testkit`, testCompilerPlugin)
 
+lazy val testCompilerPluginLib = project
+  .in(file("./munit-compiler-toolkit-testPluging-lib"))
+  .settings(commonSettings)
+  .settings(
+    publish / skip := true
+  )
+
 lazy val testCompilerPlugin = project
   .in(file("./munit-compiler-toolkit-testPlugin"))
   .settings(commonSettings)
@@ -42,7 +49,7 @@ lazy val testCompilerPlugin = project
     publish / skip := true,
     Test / fork := true,
     libraryDependencies ++= List(
-      "org.scala-lang" %% "scala3-compiler" % "3.1.2"
+      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value
     ),
     Test / javaOptions += {
       val `scala-compiler-classpath` =
@@ -63,7 +70,23 @@ lazy val testCompilerPlugin = project
       }
     }.value
   )
-  .dependsOn(`munit-compiler-toolkit-testkit`)
+  .dependsOn(`munit-compiler-toolkit-testkit`, testCompilerPluginLib)
+
+lazy val TestCompilerPluginIntegrationTest = project
+  .in(file("./munit-compiler-toolkit-testPlugin-integration-test"))
+  .settings(commonSettings)
+  .settings(
+    exportJars := true,
+    autoAPIMappings := true,
+    autoCompilerPlugins := true,
+    publish / skip := true,
+    Compile / fork := true,
+    Test / fork := true,
+    libraryDependencies += munit,
+    Compile / scalacOptions += s"""-Xplugin:${(testCompilerPlugin / Compile / packageBin).value}""",
+    Compile / scalacOptions += s"""-Xprint:testkittestphase""",
+    Test / scalacOptions += s"""-Xplugin:${(testCompilerPlugin / Compile / packageBin).value}"""
+  ).dependsOn(testCompilerPluginLib)
 
 lazy val `munit-compiler-toolkit-testkit` = project
   .in(file("./munit-compiler-toolkit-testkit"))
