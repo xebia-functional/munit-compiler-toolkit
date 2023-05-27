@@ -1,0 +1,40 @@
+# Don't edit this file!
+# It is automatically updated after every release of https://github.com/47degrees/.github
+# If you want to suggest a change, please open a PR or issue in that repository
+
+name: Update documentation
+
+on:
+  release:
+    types: [published]
+  repository_dispatch:
+    types: [docs]
+
+jobs:
+  documentation:
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    runs-on: ubuntu-latest
+    env:
+      JAVA_OPTS: --enable-preview --add-modules jdk.incubator.concurrent
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+          ref: main
+      - name: Fetch tags
+        run: git fetch --tags
+      - name: Setup Scala
+        uses: actions/setup-java@v3.6.0
+        with:
+          distribution: 'temurin'
+          java-version: 19
+      - name: Generate documentation
+        run: sbt ci-docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOWNLOAD_INFO_FROM_GITHUB: true
+      - name: Push changes
+        uses: stefanzweifel/git-auto-commit-action@v4.1.3
+        with:
+          commit_message: 'Update documentation, and other files [skip ci]'

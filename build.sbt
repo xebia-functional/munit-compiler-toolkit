@@ -2,6 +2,14 @@ import Dependencies.Compile._
 
 ThisBuild / scalaVersion := "3.2.1"
 
+addCommandAlias(
+  "ci-test",
+  "scalafmtCheckAll; scalafmtSbtCheck; github; documentation / mdoc; root / test"
+)
+addCommandAlias("ci-it-test", "testCompilerPlugin / Test / test")
+addCommandAlias("ci-docs", "github; documentation / mdoc")
+addCommandAlias("ci-publish", "github; ci-release")
+
 lazy val commonSettings = Seq(
   organizationName := "Xebia Functional",
   startYear := Some(2023),
@@ -86,7 +94,8 @@ lazy val TestCompilerPluginIntegrationTest = project
     Compile / scalacOptions += s"""-Xplugin:${(testCompilerPlugin / Compile / packageBin).value}""",
     Compile / scalacOptions += s"""-Xprint:testkittestphase""",
     Test / scalacOptions += s"""-Xplugin:${(testCompilerPlugin / Compile / packageBin).value}"""
-  ).dependsOn(testCompilerPluginLib)
+  )
+  .dependsOn(testCompilerPluginLib)
 
 lazy val `munit-compiler-toolkit-testkit` = project
   .in(file("./munit-compiler-toolkit-testkit"))
@@ -95,4 +104,10 @@ lazy val `munit-compiler-toolkit-testkit` = project
     libraryDependencies += munit,
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value
   )
-  .enablePlugins(AutomateHeaderPlugin)
+
+lazy val documentation = project
+  .dependsOn(`munit-compiler-toolkit-testkit`)
+  .settings(commonSettings)
+  .enablePlugins(MdocPlugin)
+  .settings(mdocOut := file("."))
+  .settings(publish / skip := true)
