@@ -9,6 +9,7 @@ object Dependencies {
     val sbtGithubMdoc = "0.11.2"
     val sbtMdoc = "2.3.2"
     val sbtScalafmt = "2.4.6"
+    val sbtCiRelease = "1.5.10"
   }
 
   object Compile {
@@ -24,6 +25,8 @@ object Dependencies {
       "com.alejandrohdezma" % "sbt-github-mdoc" % Versions.sbtGithubMdoc
     val sbtMdoc = "org.scalameta" % "sbt-mdoc" % Versions.sbtMdoc
     val sbtScalafmt = "org.scalameta" % "sbt-scalafmt" % Versions.sbtScalafmt
+    val sbtCiRelease =
+      "com.github.sbt" % "sbt-ci-release" % Versions.sbtCiRelease
   }
 
   object Test {}
