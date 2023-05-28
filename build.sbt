@@ -1,7 +1,7 @@
 import Dependencies.Compile._
 
 ThisBuild / scalaVersion := "3.2.2"
-ThisBuild / organization := "com.xebia"
+ThisBuild / organization := "com.47deg"
 ThisBuild / versionScheme := Some("early-semver")
 
 addCommandAlias(
