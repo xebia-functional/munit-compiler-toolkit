@@ -26,8 +26,9 @@ lazy val root = project
   .in(file("."))
   .settings(commonSettings)
   .settings(
-    name := "munit-compiler-toolkit",
-    version := "0.1.4"
+    name := "munit-compiler-toolkit-root",
+    version := "0.1.5-SNAPSHOT",
+    publish / skip := true,
   )
   .aggregate(`munit-compiler-toolkit-testkit`, testCompilerPlugin)
 
@@ -87,7 +88,7 @@ lazy val TestCompilerPluginIntegrationTest = project
   )
   .dependsOn(testCompilerPluginLib)
 
-lazy val `munit-compiler-toolkit-testkit` = project
+lazy val `munit-compiler-toolkit` = project
   .in(file("./munit-compiler-toolkit-testkit"))
   .settings(commonSettings)
   .settings(
