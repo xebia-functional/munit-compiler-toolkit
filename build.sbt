@@ -27,7 +27,7 @@ lazy val root = project
   .settings(commonSettings)
   .settings(
     name := "munit-compiler-toolkit",
-    version := "0.1.3"
+    version := "0.1.4"
   )
   .aggregate(`munit-compiler-toolkit-testkit`, testCompilerPlugin)
 
