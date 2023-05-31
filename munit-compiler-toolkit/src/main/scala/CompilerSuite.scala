@@ -203,7 +203,7 @@ trait CompilerSuite extends FunSuite, CompilerFixtures:
     * @param afterPhase
     *   The phase after which to capture the trees
     * @return
-    *   A Future containing a string representation of the trees in ast format
+    *   A tuple containing a string representation of the trees in ast format
     *   after afterPhase, a string representation of the trees in source code
     *   format after afterPhase, and a string representation of the context
     *   after afterPhase
@@ -211,7 +211,7 @@ trait CompilerSuite extends FunSuite, CompilerFixtures:
   protected def compileToStringTreeAndTreeSourcessAndStringContext(
       source: String,
       afterPhase: Option[String]
-  )(using Context): Future[(String, String, String)] =
+  )(using Context): (String, String, String) =
     val p = Promise[(String, String, String)]
     checkCompile(afterPhase.getOrElse("typer"), source) { case (t, c) =>
       p.success(
@@ -222,7 +222,7 @@ trait CompilerSuite extends FunSuite, CompilerFixtures:
         )
       )
     }
-    p.future
+    p.future.value.get.get
 
   private def checkCompile(checkAfterPhase: String, source: String)(
       assertion: (Tree, Context) => Unit
