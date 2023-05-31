@@ -3,12 +3,16 @@ import Dependencies.Compile._
 ThisBuild / scalaVersion := "3.2.2"
 ThisBuild / organization := "com.xebia"
 ThisBuild / versionScheme := Some("early-semver")
+ThisBuild / version := "0.2.0-SNAPSHOT"
 
 addCommandAlias(
   "ci-test",
   "scalafmtCheckAll; scalafmtSbtCheck; github; documentation / mdoc; root / test"
 )
-addCommandAlias("ci-it-test", "testCompilerPlugin / Test / test")
+addCommandAlias(
+  "ci-it-test",
+  "root / test; TestCompilerPluginIntegrationTest / run"
+)
 addCommandAlias("ci-docs", "github; documentation / mdoc")
 addCommandAlias("ci-publish", "github; ci-release")
 
@@ -20,17 +24,19 @@ lazy val commonSettings = Seq(
   ))
 )
 
-lazy val MunitFramework = new TestFramework("munit.Framework")
-
 lazy val root = project
   .in(file("."))
   .settings(commonSettings)
   .settings(
     name := "munit-compiler-toolkit-root",
-    version := "0.1.5-SNAPSHOT",
-    publish / skip := true,
+    publish / skip := true
   )
-  .aggregate(`munit-compiler-toolkit-testkit`, testCompilerPlugin)
+  .aggregate(
+    `munit-compiler-toolkit`,
+    testCompilerPlugin,
+    testCompilerPluginLib,
+    TestCompilerPluginIntegrationTest
+  )
 
 lazy val testCompilerPluginLib = project
   .in(file("./munit-compiler-toolkit-testPluging-lib"))
@@ -41,6 +47,7 @@ lazy val testCompilerPluginLib = project
 
 lazy val testCompilerPlugin = project
   .in(file("./munit-compiler-toolkit-testPlugin"))
+  .dependsOn(`munit-compiler-toolkit`, testCompilerPluginLib)
   .settings(commonSettings)
   .settings(
     exportJars := true,
@@ -69,7 +76,6 @@ lazy val testCompilerPlugin = project
       }
     }.value
   )
-  .dependsOn(`munit-compiler-toolkit-testkit`, testCompilerPluginLib)
 
 lazy val TestCompilerPluginIntegrationTest = project
   .in(file("./munit-compiler-toolkit-testPlugin-integration-test"))
@@ -86,10 +92,10 @@ lazy val TestCompilerPluginIntegrationTest = project
     Compile / scalacOptions += s"""-Xprint:testkittestphase""",
     Test / scalacOptions += s"""-Xplugin:${(testCompilerPlugin / Compile / packageBin).value}"""
   )
-  .dependsOn(testCompilerPluginLib)
+  .dependsOn(testCompilerPluginLib, testCompilerPlugin)
 
 lazy val `munit-compiler-toolkit` = project
-  .in(file("./munit-compiler-toolkit-testkit"))
+  .in(file("./munit-compiler-toolkit"))
   .settings(commonSettings)
   .settings(
     libraryDependencies += munit,
@@ -97,7 +103,7 @@ lazy val `munit-compiler-toolkit` = project
   )
 
 lazy val documentation = project
-  .dependsOn(`munit-compiler-toolkit-testkit`)
+  .dependsOn(`munit-compiler-toolkit`)
   .settings(commonSettings)
   .enablePlugins(MdocPlugin)
   .settings(mdocOut := file("."))
