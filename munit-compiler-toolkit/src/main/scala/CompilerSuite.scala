@@ -133,6 +133,7 @@ import munit.internal.PlatformCompat
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
+import scala.concurrent.Promise
 
 trait CompilerSuite extends FunSuite, CompilerFixtures:
 
@@ -191,6 +192,38 @@ trait CompilerSuite extends FunSuite, CompilerFixtures:
       checkCompile(afterPhase, source(a))(assertion(a))
     }
   }
+
+  /** Compiles the source code with the given context to a string representation
+    * of the trees in ast format after afterPhase, a string representation of
+    * the trees in source code format after afterPhase, and a string
+    * representation of the context after afterPhase.
+    *
+    * @param source
+    *   The scala code to be compiled
+    * @param afterPhase
+    *   The phase after which to capture the trees
+    * @return
+    *   A Future containing a string representation of the trees in ast format
+    *   after afterPhase, a string representation of the trees in source code
+    *   format after afterPhase, and a string representation of the context
+    *   after afterPhase
+    */
+  protected def compileToStringTreeAndTreeSourcessAndStringContext(
+      source: String,
+      afterPhase: Option[String]
+  )(using Context): Future[(String, String, String)] =
+    val p = Promise[(String, String, String)]
+    checkCompile(afterPhase.getOrElse("typer"), source) { case (t, c) =>
+      p.success(
+        (
+          compileSourceIdentifier.replaceAllIn(t.toString, ""),
+          compileSourceIdentifier.replaceAllIn(t.show, ""),
+          c.toString()
+        )
+      )
+    }
+    p.future
+
   private def checkCompile(checkAfterPhase: String, source: String)(
       assertion: (Tree, Context) => Unit
   )(using Context): Context =
