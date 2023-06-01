@@ -3,7 +3,7 @@ import Dependencies.Compile._
 ThisBuild / scalaVersion := "3.2.2"
 ThisBuild / organization := "com.xebia"
 ThisBuild / versionScheme := Some("early-semver")
-ThisBuild / version := "0.4.0-SNAPSHOT"
+ThisBuild / version := "0.4.0"
 
 addCommandAlias(
   "ci-test",
