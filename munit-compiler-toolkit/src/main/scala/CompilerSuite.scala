@@ -203,22 +203,21 @@ trait CompilerSuite extends FunSuite, CompilerFixtures:
     * @param afterPhase
     *   The phase after which to capture the trees
     * @return
-    *   A tuple containing a string representation of the trees in ast format
-    *   after afterPhase, a string representation of the trees in source code
+    *   A tuple containing a string representation of the trees in source code
     *   format after afterPhase, and a string representation of the context
     *   after afterPhase
     */
-  protected def compileToStringTreeAndTreeSourcessAndStringContext(
+  protected def compileToStringTreeAndStringContext(
       source: String,
       afterPhase: Option[String]
-  )(using Context): (String, String, String) =
-    val p = Promise[(String, String, String)]
+  )(using Context): (String, String) =
+    val p = Promise[(String, String)]
     checkCompile(afterPhase.getOrElse("typer"), source) { case (t, c) =>
+      val pattern = """@[0-9a-f]{0,8}""".r
       p.success(
         (
-          compileSourceIdentifier.replaceAllIn(t.toString, ""),
-          compileSourceIdentifier.replaceAllIn(t.show, ""),
-          c.toString()
+          cleanCompilerOutput(t)(using c),
+          pattern.replaceAllIn(c.toString(), "")
         )
       )
     }
